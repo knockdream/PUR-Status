@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>未交貨採購單 · 各供應商佔比</title>
+<style>
+  :root{
+    --paper:#eef1f3; --card:#fbfcfd; --ink:#16191d; --ink-2:#454c54; --ink-3:#7b838c;
+    --line:#d7dde2; --line-2:#e7ebee; --accent:#0f6f72; --hi:#d98a2b;
+    --mono:"SF Mono","JetBrains Mono","Roboto Mono",Consolas,"Courier New",monospace;
+    --sans:system-ui,-apple-system,"PingFang TC","Microsoft JhengHei","Noto Sans CJK TC","Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      linear-gradient(0deg,transparent 23px,rgba(120,135,150,.06) 24px) 0 0/100% 24px,
+      var(--paper);
+    color:var(--ink); font-family:var(--sans); -webkit-font-smoothing:antialiased;
+    line-height:1.5; padding:32px 20px 60px;
+  }
+  .wrap{max-width:1080px;margin:0 auto}
+
+  /* header */
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--ink-3);display:flex;align-items:center;gap:10px}
+  .eyebrow::after{content:"";flex:1;height:1px;background:var(--line)}
+  h1{font-size:clamp(24px,3.4vw,34px);line-height:1.12;margin:.5rem 0 .15rem;letter-spacing:-.01em;font-weight:800}
+  .sub{color:var(--ink-2);font-size:14px;max-width:62ch}
+  .stamp{font-family:var(--mono);font-size:12px;color:var(--ink-3);margin-top:6px}
+
+  /* kpi strip */
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:22px 0 26px}
+  .kpi{background:var(--card);padding:14px 16px}
+  .kpi .v{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-.02em}
+  .kpi .v small{font-size:13px;color:var(--ink-3);font-weight:400;margin-left:4px}
+  .kpi .k{font-size:12px;color:var(--ink-3);margin-top:2px}
+
+  /* chart card */
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 1px 0 rgba(20,25,30,.02),0 12px 32px -24px rgba(20,25,30,.35)}
+  .panel-h{padding:16px 20px;border-bottom:1px solid var(--line-2);display:flex;
+    align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .panel-h h2{font-size:15px;margin:0;font-weight:700}
+  .panel-h .note{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+
+  .chart-grid{display:grid;grid-template-columns:minmax(0,360px) 1fr;gap:8px;padding:18px 20px 22px}
+  .donut-box{position:relative;display:flex;align-items:center;justify-content:center}
+  svg{display:block;width:100%;height:auto;max-width:340px;overflow:visible}
+  .slice{cursor:pointer;transition:transform .18s cubic-bezier(.2,.7,.3,1),opacity .15s}
+  .center .big{font-family:var(--mono);font-weight:600;font-size:34px;fill:var(--ink)}
+  .center .lbl{font-size:12.5px;fill:var(--ink-3)}
+  .center .nm{font-size:14px;font-weight:700;fill:var(--ink)}
+
+  /* legend */
+  .legend{display:flex;flex-direction:column;gap:1px;align-self:center;width:100%}
+  .lg{display:grid;grid-template-columns:14px 1fr auto auto;align-items:center;gap:10px;
+    padding:7px 8px;border-radius:7px;cursor:pointer;transition:background .12s}
+  .lg:hover,.lg.active{background:#eef3f4}
+  .sw{width:12px;height:12px;border-radius:3px}
+  .lg .nm{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lg .ct{font-family:var(--mono);font-size:13px;color:var(--ink-2);text-align:right}
+  .lg .pc{font-family:var(--mono);font-size:12px;color:var(--ink-3);text-align:right;min-width:48px}
+  .lg.dim{opacity:.32}
+
+  /* tooltip */
+  .tip{position:fixed;pointer-events:none;z-index:9;background:var(--ink);color:#fff;
+    padding:8px 10px;border-radius:8px;font-size:12px;opacity:0;transform:translateY(4px);
+    transition:opacity .12s,transform .12s;box-shadow:0 8px 24px -8px rgba(0,0,0,.5);white-space:nowrap}
+  .tip b{font-family:var(--mono);font-weight:600}
+  .tip .t-nm{font-weight:700;margin-bottom:2px}
+  .tip .t-row{color:#cdd3d8}
+
+  /* table */
+  .tbl-h{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    margin:30px 0 12px}
+  .tbl-h h2{font-size:15px;margin:0;font-weight:700}
+  .search{font-family:var(--sans);font-size:13px;padding:8px 11px;border:1px solid var(--line);
+    border-radius:8px;background:var(--card);min-width:200px;color:var(--ink)}
+  .search:focus{outline:2px solid var(--accent);outline-offset:1px}
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;overflow:hidden;font-size:13.5px}
+  thead th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);
+    text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);background:#f4f7f8;font-weight:600}
+  th.num,td.num{text-align:right;font-family:var(--mono)}
+  tbody td{padding:9px 14px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover{background:#f3f7f8}
+  .rk{font-family:var(--mono);color:var(--ink-3);width:48px}
+  .barcell{width:34%;min-width:120px}
+  .bar{height:8px;border-radius:5px;background:var(--accent);min-width:2px}
+  .barwrap{background:var(--line-2);border-radius:5px;overflow:hidden}
+  tr.top td .rk{color:var(--hi);font-weight:700}
+
+  .foot{margin-top:26px;font-size:12.5px;color:var(--ink-3);line-height:1.7}
+  .foot code{font-family:var(--mono);background:#e6ebed;padding:1px 5px;border-radius:4px;color:var(--ink-2)}
+  .foot b{color:var(--ink-2)}
+
+  @media (max-width:720px){
+    .kpis{grid-template-columns:1fr 1fr}
+    .chart-grid{grid-template-columns:1fr;gap:18px}
+    .donut-box{order:-1}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">採購未交貨分析 · Outstanding POs</div>
+  <h1>各供應商未交貨採購單佔比</h1>
+  <p class="sub">以<b>採購編號前 10 碼</b>分組為「採購單」，統計每家供應商仍有未交貨的採購單數量，並以圓餅圖呈現各家所佔比例。</p>
+  <div class="stamp">資料來源 採購未交貨清單_20260612.xlsx · 截算日 2026-06-12</div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="v" id="k-orders">429</div><div class="k">未交貨採購單（前10碼）</div></div>
+    <div class="kpi"><div class="v" id="k-lines">1,257</div><div class="k">未交貨明細列數</div></div>
+    <div class="kpi"><div class="v" id="k-vendors">121</div><div class="k">涉及供應商家數</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-h">
+      <h2>未交貨採購單 — 供應商佔比</h2>
+      <div class="note">圓餅 = 各供應商未交採購單數 ÷ 總未交採購單數</div>
+    </div>
+    <div class="chart-grid">
+      <div class="donut-box">
+        <svg id="donut" viewBox="0 0 240 240" role="img" aria-label="各供應商未交貨採購單佔比圓餅圖"></svg>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </div>
+
+  <div class="tbl-h">
+    <h2>全部供應商排名（共 121 家）</h2>
+    <input class="search" id="search" type="search" placeholder="搜尋供應商…" aria-label="搜尋供應商">
+  </div>
+  <table>
+    <thead><tr>
+      <th class="rk">排名</th><th>供應商</th><th class="num">未交採購單</th>
+      <th class="num">佔比</th><th class="barcell">　</th><th class="num">明細列數</th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <p class="foot">
+    <b>計算方式</b>　1. 採購編號取前 10 碼（去除末 2 碼明細序號）視為一張<b>採購單</b>。
+    2. 比例以「未交貨採購單數」計算；因 <code>未交</code> 數量單位不一（只／片／式／KG／支…）無法直接加總，故不以數量為基準。
+    3. 圓餅圖顯示未交採購單數最多的前 12 名，其餘 109 家併為<b>「其他」</b>；完整排名見上表。
+    <b>「零星」</b>為系統中的雜項採購歸戶，非單一廠商。
+  </p>
+</div>
+
+<div class="tip" id="tip" aria-hidden="true"></div>
+
+<script>
+const DATA = {"meta":{"total_orders":429,"total_lines":1257,"total_vendors":121},
+"pie":[{"name":"零星","orders":60,"lines":125},{"name":"一陽","orders":23,"lines":26},{"name":"寶纊","orders":20,"lines":89},{"name":"納可","orders":17,"lines":37},{"name":"帆宣","orders":15,"lines":34},{"name":"興富鑫","orders":13,"lines":73},{"name":"文貴","orders":12,"lines":21},{"name":"勝德","orders":11,"lines":19},{"name":"凱益達","orders":9,"lines":15},{"name":"新鋼","orders":9,"lines":37},{"name":"晶勝","orders":7,"lines":23},{"name":"申章","orders":7,"lines":19},{"name":"其他（109家）","orders":226,"lines":739,"is_other":true}],
+"full":[{"rank":1,"name":"零星","orders":60,"lines":125},{"rank":2,"name":"一陽","orders":23,"lines":26},{"rank":3,"name":"寶纊","orders":20,"lines":89},{"rank":4,"name":"納可","orders":17,"lines":37},{"rank":5,"name":"帆宣","orders":15,"lines":34},{"rank":6,"name":"興富鑫","orders":13,"lines":73},{"rank":7,"name":"文貴","orders":12,"lines":21},{"rank":8,"name":"勝德","orders":11,"lines":19},{"rank":9,"name":"凱益達","orders":9,"lines":15},{"rank":10,"name":"新鋼","orders":9,"lines":37},{"rank":11,"name":"晶勝","orders":7,"lines":23},{"rank":12,"name":"申章","orders":7,"lines":19},{"rank":13,"name":"新武","orders":7,"lines":34},{"rank":14,"name":"寧英","orders":7,"lines":14},{"rank":15,"name":"宏名","orders":7,"lines":14},{"rank":16,"name":"三德(倫偉)","orders":7,"lines":8},{"rank":17,"name":"眾佑電化","orders":7,"lines":9},{"rank":18,"name":"助友","orders":6,"lines":97},{"rank":19,"name":"信邦","orders":6,"lines":12},{"rank":20,"name":"三福氣體","orders":6,"lines":6},{"rank":21,"name":"SBS","orders":6,"lines":56},{"rank":22,"name":"肯鑫","orders":6,"lines":6},{"rank":23,"name":"世全","orders":5,"lines":6},{"rank":24,"name":"嘉堉","orders":5,"lines":7},{"rank":25,"name":"大榮物流","orders":5,"lines":10},{"rank":26,"name":"迦南","orders":4,"lines":22},{"rank":27,"name":"鈤欣","orders":4,"lines":6},{"rank":28,"name":"新建","orders":4,"lines":4},{"rank":29,"name":"鍵鑫(佳業)","orders":4,"lines":5},{"rank":30,"name":"皓揚","orders":4,"lines":5},{"rank":31,"name":"明台產物","orders":3,"lines":8},{"rank":32,"name":"全曜機械","orders":3,"lines":42},{"rank":33,"name":"健新","orders":3,"lines":9},{"rank":34,"name":"建昌","orders":3,"lines":9},{"rank":35,"name":"聯誠","orders":3,"lines":3},{"rank":36,"name":"樂奇","orders":3,"lines":22},{"rank":37,"name":"統一速達(黑貓)","orders":3,"lines":6},{"rank":38,"name":"聯昕","orders":3,"lines":6},{"rank":39,"name":"晟佑","orders":3,"lines":86},{"rank":40,"name":"美朋","orders":3,"lines":6},{"rank":41,"name":"聯盛紙器","orders":2,"lines":5},{"rank":42,"name":"貿澤電子","orders":2,"lines":2},{"rank":43,"name":"蝦皮","orders":2,"lines":3},{"rank":44,"name":"金石門","orders":2,"lines":2},{"rank":45,"name":"旺旺友聯","orders":2,"lines":25},{"rank":46,"name":"沂春(立正)","orders":2,"lines":5},{"rank":47,"name":"珈新","orders":2,"lines":4},{"rank":48,"name":"東新","orders":2,"lines":4},{"rank":49,"name":"自強","orders":2,"lines":4},{"rank":50,"name":"益福","orders":2,"lines":2},{"rank":51,"name":"安億","orders":2,"lines":7},{"rank":52,"name":"南京","orders":2,"lines":12},{"rank":53,"name":"上晟","orders":2,"lines":2},{"rank":54,"name":"富灥","orders":2,"lines":2},{"rank":55,"name":"建暉","orders":2,"lines":2},{"rank":56,"name":"三福","orders":1,"lines":1},{"rank":57,"name":"SGS","orders":1,"lines":2},{"rank":58,"name":"德大行","orders":1,"lines":1},{"rank":59,"name":"強淞","orders":1,"lines":1},{"rank":60,"name":"建誼","orders":1,"lines":1},{"rank":61,"name":"展億","orders":1,"lines":1},{"rank":62,"name":"布藝家","orders":1,"lines":2},{"rank":63,"name":"富喬鋼鐵(鑫口向)","orders":1,"lines":1},{"rank":64,"name":"富邦momo","orders":1,"lines":1},{"rank":65,"name":"尚棋","orders":1,"lines":2},{"rank":66,"name":"宗霖","orders":1,"lines":3},{"rank":67,"name":"富昇","orders":1,"lines":3},{"rank":68,"name":"和和","orders":1,"lines":1},{"rank":69,"name":"國際電木板","orders":1,"lines":2},{"rank":70,"name":"孟憲君","orders":1,"lines":9},{"rank":71,"name":"奇峰廣告","orders":1,"lines":15},{"rank":72,"name":"安泰(焊翔)","orders":1,"lines":1},{"rank":73,"name":"宏銘","orders":1,"lines":1},{"rank":74,"name":"台灣三住","orders":1,"lines":2},{"rank":75,"name":"台灣易格斯","orders":1,"lines":4},{"rank":76,"name":"友佳","orders":1,"lines":1},{"rank":77,"name":"吉而特","orders":1,"lines":8},{"rank":78,"name":"嘉柏","orders":1,"lines":1},{"rank":79,"name":"國邦","orders":1,"lines":1},{"rank":80,"name":"一申","orders":1,"lines":1},{"rank":81,"name":"世揚","orders":1,"lines":1},{"rank":82,"name":"億寶","orders":1,"lines":1},{"rank":83,"name":"健能","orders":1,"lines":1},{"rank":84,"name":"亞亞","orders":1,"lines":7},{"rank":85,"name":"伍全","orders":1,"lines":1},{"rank":86,"name":"丸何","orders":1,"lines":1},{"rank":87,"name":"元益","orders":1,"lines":5},{"rank":88,"name":"勝錩","orders":1,"lines":1},{"rank":89,"name":"勝鑫","orders":1,"lines":2},{"rank":90,"name":"源日順","orders":1,"lines":1},{"rank":91,"name":"澤澤商城","orders":1,"lines":1},{"rank":92,"name":"永遠不回頭","orders":1,"lines":2},{"rank":93,"name":"泰普","orders":1,"lines":2},{"rank":94,"name":"易洋","orders":1,"lines":2},{"rank":95,"name":"東日","orders":1,"lines":1},{"rank":96,"name":"柏泰","orders":1,"lines":1},{"rank":97,"name":"榕誠","orders":1,"lines":1},{"rank":98,"name":"春源","orders":1,"lines":2},{"rank":99,"name":"新和","orders":1,"lines":1},{"rank":100,"name":"敦擎","orders":1,"lines":1},{"rank":101,"name":"新竹物流","orders":1,"lines":1},{"rank":102,"name":"日昌","orders":1,"lines":1},{"rank":103,"name":"新銲易","orders":1,"lines":6},{"rank":104,"name":"明匠","orders":1,"lines":1},{"rank":105,"name":"明曜","orders":1,"lines":1},{"rank":106,"name":"恒升","orders":1,"lines":1},{"rank":107,"name":"文中","orders":1,"lines":2},{"rank":108,"name":"新時","orders":1,"lines":1},{"rank":109,"name":"福鑫","orders":1,"lines":1},{"rank":110,"name":"萬越","orders":1,"lines":2},{"rank":111,"name":"莘泰","orders":1,"lines":1},{"rank":112,"name":"祥化","orders":1,"lines":1},{"rank":113,"name":"裕鑫","orders":1,"lines":2},{"rank":114,"name":"邁恩捷","orders":1,"lines":2},{"rank":115,"name":"進發","orders":1,"lines":1},{"rank":116,"name":"速律達","orders":1,"lines":1},{"rank":117,"name":"鈞裕發","orders":1,"lines":1},{"rank":118,"name":"釩新","orders":1,"lines":4},{"rank":119,"name":"隆伍","orders":1,"lines":2},{"rank":120,"name":"飛行船","orders":1,"lines":1},{"rank":121,"name":"鴻叡","orders":1,"lines":6}]};
+
+const COLORS=['#0f6f72','#1f8a8d','#3aa6a0','#57b3c4','#3d7fb5','#4a5fa5','#6b5b95','#9a6a9e','#c4708a','#d98a2b','#cf9b3a','#a9a06b'];
+const OTHER_C='#b4b8bc';
+const TOTAL=DATA.meta.total_orders;
+const fmt=n=>n.toLocaleString('en-US');
+const pc=n=>(n/TOTAL*100).toFixed(1)+'%';
+
+// ---- donut ----
+const NS='http://www.w3.org/2000/svg';
+const svg=document.getElementById('donut');
+const CX=120,CY=120,R=92,RIN=58;
+function arc(cx,cy,r,a0,a1){
+  const p0=[cx+r*Math.cos(a0),cy+r*Math.sin(a0)],p1=[cx+r*Math.cos(a1),cy+r*Math.sin(a1)];
+  const large=(a1-a0)>Math.PI?1:0;
+  return [p0,p1,large];
+}
+function slicePath(a0,a1){
+  const [o0,o1,lg]=arc(CX,CY,R,a0,a1);
+  const [i0,i1]=arc(CX,CY,RIN,a1,a0);
+  return `M${o0[0]} ${o0[1]} A${R} ${R} 0 ${lg} 1 ${o1[0]} ${o1[1]} L${i0[0]} ${i0[1]} A${RIN} ${RIN} 0 ${lg} 0 ${i1[0]} ${i1[1]} Z`;
+}
+const slices=[];
+let ang=-Math.PI/2;
+DATA.pie.forEach((d,i)=>{
+  const frac=d.orders/TOTAL, a1=ang+frac*2*Math.PI, mid=(ang+a1)/2;
+  const col=d.is_other?OTHER_C:COLORS[i];
+  const path=document.createElementNS(NS,'path');
+  path.setAttribute('d',slicePath(ang,a1));
+  path.setAttribute('fill',col);
+  path.setAttribute('stroke','var(--card)');
+  path.setAttribute('stroke-width','2');
+  path.setAttribute('class','slice');
+  path.dataset.i=i;
+  const dx=Math.cos(mid),dy=Math.sin(mid);
+  path._pop=`translate(${dx*8}px,${dy*8}px)`;
+  svg.appendChild(path);
+  slices.push({el:path,d,col});
+  ang=a1;
+});
+// center group
+const cg=document.createElementNS(NS,'g'); cg.setAttribute('class','center'); cg.setAttribute('text-anchor','middle');
+cg.innerHTML=`<text class="big" x="120" y="116">${fmt(TOTAL)}</text><text class="lbl" x="120" y="138">未交貨採購單</text>`;
+svg.appendChild(cg);
+function setCenter(d){
+  if(!d){cg.innerHTML=`<text class="big" x="120" y="116">${fmt(TOTAL)}</text><text class="lbl" x="120" y="138">未交貨採購單</text>`;return;}
+  cg.innerHTML=`<text class="nm" x="120" y="110">${d.name.replace(/（.*?）/,'')}</text>`+
+    `<text class="big" x="120" y="140" style="font-size:28px">${fmt(d.orders)}</text>`+
+    `<text class="lbl" x="120" y="160">${pc(d.orders)}</text>`;
+}
+
+// ---- legend ----
+const legend=document.getElementById('legend');
+DATA.pie.forEach((d,i)=>{
+  const col=d.is_other?OTHER_C:COLORS[i];
+  const row=document.createElement('div'); row.className='lg'; row.dataset.i=i;
+  row.innerHTML=`<span class="sw" style="background:${col}"></span>`+
+    `<span class="nm">${d.name}</span>`+
+    `<span class="ct">${fmt(d.orders)}</span>`+
+    `<span class="pc">${pc(d.orders)}</span>`;
+  legend.appendChild(row);
+});
+
+// ---- interaction ----
+const tip=document.getElementById('tip');
+function focus(i){
+  slices.forEach((s,j)=>{
+    s.el.style.transform = j==i ? s.el._pop : 'none';
+    s.el.style.opacity = (i==null||j==i)?1:.45;
+  });
+  [...legend.children].forEach((r,j)=>{
+    r.classList.toggle('active',j==i);
+    r.classList.toggle('dim',i!=null&&j!=i);
+  });
+  setCenter(i==null?null:DATA.pie[i].is_other?DATA.pie[i]:DATA.pie[i]);
+}
+function showTip(d,e){
+  tip.innerHTML=`<div class="t-nm">${d.name}</div>`+
+    `<div class="t-row">未交採購單 <b>${fmt(d.orders)}</b> · 佔 <b>${pc(d.orders)}</b></div>`+
+    `<div class="t-row">明細列數 <b>${fmt(d.lines)}</b></div>`;
+  tip.style.opacity=1;tip.style.transform='translateY(0)';
+  moveTip(e);
+}
+function moveTip(e){
+  const pad=14,w=tip.offsetWidth,h=tip.offsetHeight;
+  let x=e.clientX+pad,y=e.clientY+pad;
+  if(x+w>innerWidth-8)x=e.clientX-w-pad;
+  if(y+h>innerHeight-8)y=e.clientY-h-pad;
+  tip.style.left=x+'px';tip.style.top=y+'px';
+}
+function hideTip(){tip.style.opacity=0;tip.style.transform='translateY(4px)';}
+
+slices.forEach((s,i)=>{
+  s.el.addEventListener('mouseenter',e=>{focus(i);showTip(s.d,e);});
+  s.el.addEventListener('mousemove',moveTip);
+  s.el.addEventListener('mouseleave',()=>{focus(null);hideTip();});
+});
+[...legend.children].forEach((r,i)=>{
+  r.addEventListener('mouseenter',e=>{focus(i);showTip(DATA.pie[i],e);});
+  r.addEventListener('mousemove',moveTip);
+  r.addEventListener('mouseleave',()=>{focus(null);hideTip();});
+});
+
+// ---- table ----
+const tbody=document.getElementById('tbody');
+const maxO=DATA.full[0].orders;
+function renderTable(filter=''){
+  const f=filter.trim().toLowerCase();
+  tbody.innerHTML='';
+  DATA.full.filter(d=>!f||d.name.toLowerCase().includes(f)).forEach(d=>{
+    const tr=document.createElement('tr');
+    if(d.rank<=12)tr.className='top';
+    tr.innerHTML=`<td class="rk">${d.rank}</td>`+
+      `<td>${d.name}</td>`+
+      `<td class="num">${fmt(d.orders)}</td>`+
+      `<td class="num">${pc(d.orders)}</td>`+
+      `<td class="barcell"><div class="barwrap"><div class="bar" style="width:${(d.orders/maxO*100).toFixed(1)}%"></div></div></td>`+
+      `<td class="num">${fmt(d.lines)}</td>`;
+    tbody.appendChild(tr);
+  });
+  if(!tbody.children.length)tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--ink-3);padding:20px">找不到符合的供應商</td></tr>';
+}
+renderTable();
+document.getElementById('search').addEventListener('input',e=>renderTable(e.target.value));
+</script>
+</body>
+</html>
